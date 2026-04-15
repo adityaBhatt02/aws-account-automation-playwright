@@ -9,10 +9,7 @@ from config import CONFIG
 from email_utils import get_email_otp_simple
 
 
-# ============================================================
 # CONSTANTS
-# ============================================================
-
 MAX_ACCOUNTS = 10
 OUTPUT_FILE = "generated_accounts.csv"
 
@@ -69,10 +66,7 @@ MONTH_MAP = {
 }
 
 
-# ============================================================
 # PROMPTS
-# ============================================================
-
 def prompt_inputs():
     print("\n" + "="*50)
     print("       AWS ACCOUNT AUTO-CREATOR")
@@ -103,10 +97,7 @@ def prompt_inputs():
     return count, account_type
 
 
-# ============================================================
 # CSV LOGGER
-# ============================================================
-
 def init_csv():
     if not os.path.exists(OUTPUT_FILE):
         with open(OUTPUT_FILE, "w", newline="") as f:
@@ -125,10 +116,7 @@ def log_result(email, password, account_type, status):
     print(f"[✓] Logged: {email} → {status}")
 
 
-# ============================================================
 # HELPERS
-# ============================================================
-
 def pause(a=1, b=3):
     time.sleep(random.uniform(a, b))
 
@@ -210,10 +198,7 @@ def wait_for_any(page, selectors, timeout=20000):
     return None
 
 
-# ============================================================
 # STEP 1: SIGNUP
-# ============================================================
-
 def signup(page, alias_email, account_type):
     print(f"\n===== STEP 1: SIGNUP [{account_type}] | {alias_email} =====")
 
@@ -278,10 +263,7 @@ def signup(page, alias_email, account_type):
     print("[✓] Signup done")
 
 
-# ============================================================
 # STEP 2: PLAN SELECTION
-# ============================================================
-
 def handle_plan_selection(page):
     print("\n===== STEP 2: PLAN SELECTION =====")
     try:
@@ -296,10 +278,7 @@ def handle_plan_selection(page):
         print("[INFO] No plan selection page (skipping)")
 
 
-# ============================================================
 # STEP 3: CONTACT INFO
-# ============================================================
-
 def fill_contact(page, profile):
     print("\n===== STEP 3: CONTACT INFO =====")
     pause(3, 5)
@@ -389,10 +368,7 @@ def fill_contact(page, profile):
         print(f"⚠️ Contact submit: {e}")
 
 
-# ============================================================
 # STEP 4: BILLING
-# ============================================================
-
 def billing(page, profile, account_type):
     print("\n===== STEP 4: BILLING =====")
 
@@ -514,10 +490,7 @@ def billing(page, profile, account_type):
         raise Exception(f"Billing Continue failed: {e}")
 
 
-# ============================================================
 # STEP 5: IDENTITY VERIFICATION (Phone OTP)
-# ============================================================
-
 def handle_identity_verification(page, profile):
     print("\n===== STEP 5: IDENTITY VERIFICATION =====")
 
@@ -620,10 +593,8 @@ def handle_identity_verification(page, profile):
     except Exception as e:
         print(f"⚠️ PIN step: {e}")
 
-# ============================================================
-# STEP 6: 3D SECURE / CARD OTP (Bank verification)
-# ============================================================
 
+# STEP 6: 3D SECURE / CARD OTP (Bank verification)
 def handle_3ds_verification(page):
     print("\n===== STEP 6: 3DS CARD VERIFICATION =====")
 
@@ -699,10 +670,7 @@ def handle_3ds_verification(page):
     pause(3, 5)
 
 
-# ============================================================
 # STEP 7: SUPPORT PLAN SELECTION
-# ============================================================
-
 def handle_support_plan(page):
     print("\n===== STEP 7: SUPPORT PLAN =====")
 
@@ -743,10 +711,7 @@ def handle_support_plan(page):
         print("[INFO] No support plan page detected (skipping)")
 
 
-# ============================================================
 # STEP 8: WAIT FOR ACCOUNT CREATION SUCCESS
-# ============================================================
-
 def wait_for_success(page):
     print("\n===== STEP 8: WAITING FOR ACCOUNT CREATION =====")
 
@@ -768,10 +733,7 @@ def wait_for_success(page):
         return False
 
 
-# ============================================================
 # SINGLE ACCOUNT FLOW
-# ============================================================
-
 def create_one_account(browser, account_type, index):
     profile = PROFILES[account_type]
     alias_email = generate_alias_email(CONFIG["EMAIL"])
@@ -833,10 +795,7 @@ def create_one_account(browser, account_type, index):
     return status
 
 
-# ============================================================
 # MAIN
-# ============================================================
-
 def run():
     lock_file = os.path.join("user_data", "SingletonLock")
     if os.path.exists(lock_file):
