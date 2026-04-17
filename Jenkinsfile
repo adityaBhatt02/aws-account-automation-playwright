@@ -2,8 +2,6 @@ pipeline {
     agent any
 
     triggers {
-        // Run at 9 AM every alternate Saturday
-        // Jenkins doesn't have built-in "every other week" — we handle it in the script below
         cron('0 9 * * 6')
     }
 
@@ -15,7 +13,6 @@ pipeline {
         stage('Check Alternate Week') {
             steps {
                 script {
-                    // Get ISO week number — run only on even weeks
                     def weekNum = sh(script: "date +%V", returnStdout: true).trim().toInteger()
                     if (weekNum % 2 != 0) {
                         currentBuild.result = 'NOT_BUILT'
@@ -28,20 +25,20 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright/'
+                git branch: 'main', url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright.git'
             }
         }
 
         stage('Setup') {
             steps {
-                withCredentials([file(credentialsId: 'aws-env-file', variable: 'ENV_FILE')]) {
+                withCredentials([file(credentialsId: 'aws-creator-env', variable: 'ENV_FILE')]) {
                     sh 'cp $ENV_FILE .env'
                 }
                 sh '''
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install -r requirements.txt --quiet
-                    playwright install chromium
+                    playwright install chromium --with-deps
                 '''
             }
         }
@@ -53,8 +50,13 @@ pipeline {
                     export DISPLAY=:99
                     Xvfb :99 -screen 0 1920x1080x24 &
                     sleep 2
-                    export AWS_ACCOUNT_COUNT=1
-                    export AWS_ACCOUNT_TYPE_KEY=1
+
+                    export AWS_ACCOUNT_COUNT=$(grep AWS_ACCOUNT_COUNT .env | cut -d '=' -f2 | tr -d '"')
+                    export AWS_ACCOUNT_TYPE_KEY=$(grep AWS_ACCOUNT_TYPE_KEY .env | cut -d '=' -f2 | tr -d '"')
+
+                    echo "[Jenkins] Account Count: $AWS_ACCOUNT_COUNT"
+                    echo "[Jenkins] Account Type Key: $AWS_ACCOUNT_TYPE_KEY"
+
                     python3 main.py 2>&1 | tee run_output.txt
                 '''
             }
@@ -66,7 +68,7 @@ pipeline {
             script {
                 def output = readFile('run_output.txt')
                 def csvContent = fileExists('generated_accounts.csv') ? readFile('generated_accounts.csv') : 'No CSV generated'
-                
+
                 emailext(
                     to: 'itsadityayayaya@gmail.com',
                     subject: "✅ AWS Account Creator — SUCCESS [Build #${BUILD_NUMBER}]",
@@ -92,9 +94,7 @@ Full logs: ${BUILD_URL}console
         failure {
             script {
                 def output = fileExists('run_output.txt') ? readFile('run_output.txt') : 'No output captured'
-                
-                // Parse which step failed from the output
-                def failedStep = 'Unknown step'
+
                 def stepPatterns = [
                     'STEP 1: SIGNUP',
                     'STEP 2: PLAN SELECTION',
@@ -105,16 +105,24 @@ Full logs: ${BUILD_URL}console
                     'STEP 7: SUPPORT PLAN',
                     'STEP 8: WAITING FOR ACCOUNT CREATION'
                 ]
+
                 def lastStep = 'Unknown'
                 stepPatterns.each { step ->
                     if (output.contains(step)) lastStep = step
                 }
 
-                // Get last error line
-                def errorLine = output.split('\n').findAll { it.contains('❌') || it.contains('FAILED') || it.contains('Exception') }.join('\n').take(500)
+                def errorLine = output.split('\n')
+                    .findAll { it.contains('❌') || it.contains('FAILED') || it.contains('Exception') }
+                    .join('\n')
+                    .take(500)
+
+                // FIX: replaced .takeRight() with plain split + size math (sandbox safe)
+                def lines = output.split('\n')
+                def startIdx = [lines.size() - 100, 0].max()
+                def lastLines = lines[startIdx..<lines.size()].join('\n')
 
                 emailext(
-                    to: 'your-email@gmail.com',
+                    to: 'itsadityayayaya@gmail.com',
                     subject: "❌ AWS Account Creator — FAILED [Build #${BUILD_NUMBER}]",
                     body: """
 AWS Account Auto-Creator FAILED.
@@ -129,7 +137,7 @@ ${lastStep}
 ${errorLine ?: 'See full logs below'}
 
 --- Last 100 Lines of Output ---
-${output.split('\n').takeRight(100).join('\n')}
+${lastLines}
 
 Full logs: ${BUILD_URL}console
                     """
@@ -139,7 +147,7 @@ Full logs: ${BUILD_URL}console
 
         always {
             archiveArtifacts artifacts: 'generated_accounts.csv', allowEmptyArchive: true
-            sh 'rm -f .env'  // Always clean up credentials
+            sh 'rm -f .env'
         }
     }
 }
