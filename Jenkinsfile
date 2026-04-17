@@ -38,7 +38,7 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install -r requirements.txt --quiet
-                    playwright install chromium
+                    playwright install chromium --with-deps
                 '''
             }
         }
@@ -146,7 +146,7 @@ Full logs: ${BUILD_URL}console
         }
 
         always {
-            archiveArtifacts artifacts: 'generated_accounts.csv', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'generated_accounts.csv,debug_*.png', allowEmptyArchive: true
             sh 'rm -f .env'
         }
     }
