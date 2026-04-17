@@ -1,0 +1,144 @@
+pipeline {
+    agent any
+
+    triggers {
+        // Run at 9 AM every alternate Saturday
+        // Jenkins doesn't have built-in "every other week" — we handle it in the script below
+        cron('0 9 * * 6')
+    }
+
+    environment {
+        PYTHONUNBUFFERED = '1'
+    }
+
+    stages {
+        stage('Check Alternate Week') {
+            steps {
+                script {
+                    // Get ISO week number — run only on even weeks
+                    def weekNum = sh(script: "date +%V", returnStdout: true).trim().toInteger()
+                    if (weekNum % 2 != 0) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error("Odd week ${weekNum} — skipping this run")
+                    }
+                    echo "Week ${weekNum} — proceeding"
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/YOUR_REPO.git'
+            }
+        }
+
+        stage('Setup') {
+            steps {
+                withCredentials([file(credentialsId: 'aws-creator-env', variable: 'ENV_FILE')]) {
+                    sh 'cp $ENV_FILE .env'
+                }
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt --quiet
+                    playwright install chromium
+                '''
+            }
+        }
+
+        stage('Run Account Creator') {
+            steps {
+                sh '''
+                    . venv/bin/activate
+                    export DISPLAY=:99
+                    Xvfb :99 -screen 0 1920x1080x24 &
+                    sleep 2
+                    # Pass account type and count via env or hardcode here
+                    echo "1\n1" | python3 main.py 2>&1 | tee run_output.txt
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                def output = readFile('run_output.txt')
+                def csvContent = fileExists('generated_accounts.csv') ? readFile('generated_accounts.csv') : 'No CSV generated'
+                
+                emailext(
+                    to: 'your-email@gmail.com',
+                    subject: "✅ AWS Account Creator — SUCCESS [Build #${BUILD_NUMBER}]",
+                    body: """
+AWS Account Auto-Creator completed successfully.
+
+Build: #${BUILD_NUMBER}
+Date: ${new Date()}
+
+--- Script Output ---
+${output.take(3000)}
+
+--- Accounts Created (CSV) ---
+${csvContent}
+
+Full logs: ${BUILD_URL}console
+                    """,
+                    attachmentsPattern: 'generated_accounts.csv'
+                )
+            }
+        }
+
+        failure {
+            script {
+                def output = fileExists('run_output.txt') ? readFile('run_output.txt') : 'No output captured'
+                
+                // Parse which step failed from the output
+                def failedStep = 'Unknown step'
+                def stepPatterns = [
+                    'STEP 1: SIGNUP',
+                    'STEP 2: PLAN SELECTION',
+                    'STEP 3: CONTACT INFO',
+                    'STEP 4: BILLING',
+                    'STEP 5: IDENTITY VERIFICATION',
+                    'STEP 6: 3DS CARD VERIFICATION',
+                    'STEP 7: SUPPORT PLAN',
+                    'STEP 8: WAITING FOR ACCOUNT CREATION'
+                ]
+                def lastStep = 'Unknown'
+                stepPatterns.each { step ->
+                    if (output.contains(step)) lastStep = step
+                }
+
+                // Get last error line
+                def errorLine = output.split('\n').findAll { it.contains('❌') || it.contains('FAILED') || it.contains('Exception') }.join('\n').take(500)
+
+                emailext(
+                    to: 'your-email@gmail.com',
+                    subject: "❌ AWS Account Creator — FAILED [Build #${BUILD_NUMBER}]",
+                    body: """
+AWS Account Auto-Creator FAILED.
+
+Build: #${BUILD_NUMBER}
+Date: ${new Date()}
+
+--- Last Step Reached ---
+${lastStep}
+
+--- Error Details ---
+${errorLine ?: 'See full logs below'}
+
+--- Last 100 Lines of Output ---
+${output.split('\n').takeRight(100).join('\n')}
+
+Full logs: ${BUILD_URL}console
+                    """
+                )
+            }
+        }
+
+        always {
+            archiveArtifacts artifacts: 'generated_accounts.csv', allowEmptyArchive: true
+            sh 'rm -f .env'  // Always clean up credentials
+        }
+    }
+}
