@@ -122,9 +122,12 @@ def pause(a=1, b=3):
 
 
 def slow_type(locator, text):
-    locator.click()
+    locator.click(delay=random.randint(150, 400))
+    time.sleep(random.uniform(0.4, 0.8)) # Pause before typing
     for ch in text:
-        locator.type(ch, delay=random.uniform(40, 80))
+        locator.type(ch, delay=random.uniform(200, 450)) # Very slow typing
+        if random.random() < 0.15: # 15% chance to hesitate
+            time.sleep(random.uniform(0.5, 1.5))
 
 
 def generate_alias_email(base_email):
@@ -152,7 +155,7 @@ def dismiss_cookie_banner(page):
             'button[data-id="awsccc-cb-btn-accept"], .awsccc-u-btn-primary'
         ).first
         btn.wait_for(timeout=5000)
-        btn.click()
+        btn.click(delay=random.randint(150, 400))
         print("[✓] Cookie banner dismissed")
         pause(1, 2)
     except Exception:
@@ -163,7 +166,7 @@ def select_dropdown(page, btn_selector, value, is_month=False):
     display_value = MONTH_MAP.get(value, value) if is_month else value
     btn = page.locator(btn_selector)
     btn.wait_for(timeout=10000)
-    btn.click()
+    btn.click(delay=random.randint(150, 400))
     pause(1, 2)
 
     all_opts = page.locator('[role="option"], [role="listbox"] li').all()
@@ -173,7 +176,7 @@ def select_dropdown(page, btn_selector, value, is_month=False):
         try:
             txt = opt.inner_text().strip().split("\n")[0].strip()
             if txt == display_value:
-                opt.click()
+                opt.click(delay=random.randint(150, 400))
                 print(f"[✓] Selected '{display_value}'")
                 return True
         except Exception:
@@ -218,14 +221,14 @@ def signup(page, alias_email, account_type):
         pass
 
     email_input = page.locator("#emailAddress")
-    email_input.click()
+    email_input.click(delay=random.randint(150, 400))
     email_input.fill("")
     slow_type(email_input, alias_email)
     pause(1, 2)
 
     account_name = f"{CONFIG['ACCOUNT_NAME']}-{random.randint(1000, 9999)}"
     name_input = page.locator("#accountName")
-    name_input.click()
+    name_input.click(delay=random.randint(150, 400))
     slow_type(name_input, account_name)
     print(f"[*] Account name: {account_name}")
     pause(1, 2)
@@ -233,7 +236,7 @@ def signup(page, alias_email, account_type):
     btn = page.locator('[data-testid="collect-email-submit-button"]')
     btn.hover()
     pause(0.5, 1)
-    btn.click()
+    btn.click(delay=random.randint(150, 400))
     pause(3, 5)
 
     try:
@@ -250,32 +253,54 @@ def signup(page, alias_email, account_type):
     if not otp:
         raise Exception("Signup OTP not received")
 
-    page.fill("#otp", otp)
-    page.click('[data-testid="verify-email-submit-button"]')
+    # Changed from fill to slow type
+    page.locator("#otp").click(delay=random.randint(150, 400))
+    page.type("#otp", otp, delay=random.uniform(200, 450))
+    page.click('[data-testid="verify-email-submit-button"]', delay=random.randint(150, 400))
     pause(2, 4)
 
     page.wait_for_selector("#password", timeout=30000)
-    page.fill("#password", CONFIG["PASSWORD"])
-    page.fill("#rePassword", CONFIG["PASSWORD"])
-    page.click('[data-testid="create-password-submit-button"]')
+    page.locator("#password").click(delay=random.randint(150, 400))
+    page.type("#password", CONFIG["PASSWORD"], delay=random.uniform(200, 450))
+    
+    # Blur fix so the second password box unlocks correctly
+    page.locator("#password").blur()
+    time.sleep(1)
+    
+    page.locator("#rePassword").click(delay=random.randint(150, 400))
+    page.type("#rePassword", CONFIG["PASSWORD"], delay=random.uniform(200, 450))
+    page.click('[data-testid="create-password-submit-button"]', delay=random.randint(150, 400))
     pause(3, 5)
 
     print("[✓] Signup done")
 
 
 # STEP 2: PLAN SELECTION
+# STEP 2: PLAN SELECTION
 def handle_plan_selection(page):
     print("\n===== STEP 2: PLAN SELECTION =====")
     try:
         page.wait_for_selector('text=Choose your account plan', timeout=15000)
         print("[✓] Plan page detected — selecting FREE plan")
-        free_btn = page.locator('button:has-text("Choose free plan")').first
-        free_btn.wait_for(timeout=10000)
-        free_btn.click()
+
+        # 1. Use the exact data-analytics attribute from your screenshot
+        # 2. Fallback to the text selector just in case
+        free_btn = page.locator(
+            '[data-analytics="Free_Tier_V2_Account_Plan_Selection_Trial_Button_Text"], '
+            'button:has-text("Choose free plan")'
+        ).first
+        
+        # Ensure it's fully visible on screen before clicking
+        free_btn.wait_for(state="visible", timeout=10000)
+        free_btn.scroll_into_view_if_needed()
+        
+        # Execute the slow click
+        free_btn.click(delay=random.randint(150, 400))
         pause(3, 5)
         print("[✓] Free plan selected")
-    except Exception:
-        print("[INFO] No plan selection page (skipping)")
+        
+    except Exception as e:
+        print(f"[INFO] No plan selection page or error (skipping): {e}")
 
 
 # STEP 3: CONTACT INFO
@@ -287,11 +312,11 @@ def fill_contact(page, profile):
     try:
         print("[*] Selecting phone country code...")
         phone_btn = page.locator('#address\\.phoneCode').first
-        phone_btn.click()
+        phone_btn.click(delay=random.randint(150, 400))
         pause(2, 3)
         country_value = "IN" if profile["COUNTRY"] == "India" else "US"
         page.locator(f'[data-value="{country_value}"]').last.wait_for(timeout=5000)
-        page.locator(f'[data-value="{country_value}"]').last.click()
+        page.locator(f'[data-value="{country_value}"]').last.click(delay=random.randint(150, 400))
         print(f"[✓] Phone code: {country_value}")
         pause(1, 2)
     except Exception as e:
@@ -301,10 +326,10 @@ def fill_contact(page, profile):
     try:
         print("[*] Selecting country...")
         country_btn = page.locator('button#address\\.country').first
-        country_btn.click()
+        country_btn.click(delay=random.randint(150, 400))
         pause(1, 2)
         country_value = "IN" if profile["COUNTRY"] == "India" else "US"
-        page.locator(f'[data-value="{country_value}"]').last.click()
+        page.locator(f'[data-value="{country_value}"]').last.click(delay=random.randint(150, 400))
         print(f"[✓] Country: {profile['COUNTRY']}")
         pause(1, 2)
     except Exception as e:
@@ -323,11 +348,13 @@ def fill_contact(page, profile):
     for label, value in fields.items():
         try:
             loc = page.get_by_label(label)
-            loc.click()
+            loc.click(delay=random.randint(150, 400))
             pause(0.5, 1)
             loc.fill("")
             for ch in value:
-                loc.type(ch, delay=random.uniform(50, 100))
+                loc.type(ch, delay=random.uniform(200, 450))
+                if random.random() < 0.10:
+                    time.sleep(random.uniform(0.5, 1.5))
             pause(0.5, 1)
         except Exception as e:
             print(f"⚠️ Field '{label}': {e}")
@@ -336,11 +363,13 @@ def fill_contact(page, profile):
     try:
         print("[*] Filling state...")
         state_input = page.get_by_label("State, Province, or Region")
-        state_input.click()
+        state_input.click(delay=random.randint(150, 400))
         pause(1, 2)
         state_input.fill("")
         for ch in profile["STATE"]:
-            state_input.type(ch, delay=random.uniform(80, 150))
+            state_input.type(ch, delay=random.uniform(200, 450))
+            if random.random() < 0.10:
+                    time.sleep(random.uniform(0.5, 1.5))
         pause(2, 3)
         page.keyboard.press("ArrowDown")
         pause(0.5, 1)
@@ -352,7 +381,7 @@ def fill_contact(page, profile):
 
     # Agreement checkbox
     try:
-        page.locator('[aria-label="AWS Customer Agreement checkbox"]').click()
+        page.locator('[aria-label="AWS Customer Agreement checkbox"]').click(delay=random.randint(150, 400))
         pause(1, 2)
         print("[✓] Agreement checked")
     except Exception as e:
@@ -361,7 +390,7 @@ def fill_contact(page, profile):
     # Submit
     try:
         pause(2, 3)
-        page.click('[data-testid="contact-information-submit-button"]')
+        page.click('[data-testid="contact-information-submit-button"]', delay=random.randint(150, 400))
         pause(5, 8)
         print("[✓] Contact submitted")
     except Exception as e:
@@ -383,7 +412,7 @@ def billing(page, profile, account_type):
         page.wait_for_selector('text=Payment method type', timeout=20000)
 
     dismiss_cookie_banner(page)
-    page.get_by_text("Credit or debit card").click()
+    page.get_by_text("Credit or debit card").click(delay=random.randint(150, 400))
     pause(2, 3)
 
     # Find card iframe
@@ -411,20 +440,21 @@ def billing(page, profile, account_type):
     if card_frame:
         try:
             card_frame.wait_for_selector('input[name="cardNumber"]', timeout=10000)
-            card_frame.fill('input[name="cardNumber"]', CONFIG["CardNo"])
+            # Changed fill to slow type
+            card_frame.type('input[name="cardNumber"]', CONFIG["CardNo"], delay=random.uniform(200, 450))
             pause(1, 2)
-            card_frame.fill('input[name="sor.cvv"]', CONFIG["cvvNo"])
+            card_frame.type('input[name="sor.cvv"]', CONFIG["cvvNo"], delay=random.uniform(200, 450))
             pause(1, 2)
-            card_frame.fill('input[name="accountHolderName"]', CONFIG["nameOnCard"])
+            card_frame.type('input[name="accountHolderName"]', CONFIG["nameOnCard"], delay=random.uniform(200, 450))
             pause(1, 2)
             print("[✓] Card fields filled")
         except Exception as e:
             print(f"⚠️ Card fill: {e}")
     else:
         try:
-            page.fill('input[name="cardNumber"]', CONFIG["CardNo"])
-            page.fill('input[name="sor.cvv"]', CONFIG["cvvNo"])
-            page.fill('input[name="accountHolderName"]', CONFIG["nameOnCard"])
+            page.type('input[name="cardNumber"]', CONFIG["CardNo"], delay=random.uniform(200, 450))
+            page.type('input[name="sor.cvv"]', CONFIG["cvvNo"], delay=random.uniform(200, 450))
+            page.type('input[name="accountHolderName"]', CONFIG["nameOnCard"], delay=random.uniform(200, 450))
             print("[✓] Direct card fill done")
         except Exception as e:
             print(f"⚠️ Direct fill: {e}")
@@ -451,7 +481,7 @@ def billing(page, profile, account_type):
             'label:has-text("Use my contact address"), input[value="existing"]'
         ).first
         if use_contact.count() > 0:
-            use_contact.click()
+            use_contact.click(delay=random.randint(150, 400))
             print("[✓] Using contact address")
         pause(1, 2)
     except Exception:
@@ -462,12 +492,12 @@ def billing(page, profile, account_type):
         page.wait_for_selector('text=Do you have a PAN', timeout=10000)
         pan_no = profile.get("panNo", "")
         if account_type in ("TTN", "CK") and pan_no:
-            page.locator('input[name="sor.panStatus"][value="Yes"]').first.click()
+            page.locator('input[name="sor.panStatus"][value="Yes"]').first.click(delay=random.randint(150, 400))
             pause(1, 2)
-            page.locator('input[name="sor.pan"], input[placeholder*="PAN" i]').first.fill(pan_no)
+            page.locator('input[name="sor.pan"], input[placeholder*="PAN" i]').first.type(pan_no, delay=random.uniform(200, 450))
             print(f"[✓] PAN filled: {pan_no}")
         else:
-            page.locator('input[name="sor.panStatus"][value="No"]').first.click()
+            page.locator('input[name="sor.panStatus"][value="No"]').first.click(delay=random.randint(150, 400))
             print("[✓] PAN = No")
         pause(1, 2)
     except Exception as e:
@@ -483,7 +513,7 @@ def billing(page, profile, account_type):
             'button:has-text("Next")'
         ).first
         continue_btn.wait_for(timeout=10000)
-        continue_btn.click()
+        continue_btn.click(delay=random.randint(150, 400))
         print("[✓] Billing Continue clicked")
         pause(5, 8)
     except Exception as e:
@@ -523,7 +553,7 @@ def handle_identity_verification(page, profile):
             'label:has-text("Text message"), label:has-text("Voice call")'
         ).first
         if phone_option.is_visible():
-            phone_option.click()
+            phone_option.click(delay=random.randint(150, 400))
             print("[✓] Selected phone verification method")
             pause(1, 2)
     except Exception:
@@ -537,7 +567,7 @@ def handle_identity_verification(page, profile):
         ).first
         if phone_input.is_visible():
             phone_input.fill("")
-            phone_input.fill(profile["phoneNo"])
+            phone_input.type(profile["phoneNo"], delay=random.uniform(200, 450))
             print(f"[✓] Phone filled: {profile['phoneNo']}")
             pause(1, 2)
     except Exception:
@@ -551,7 +581,7 @@ def handle_identity_verification(page, profile):
             'button:has-text("Contact me")'
         ).first
         send_btn.wait_for(timeout=10000)
-        send_btn.click()
+        send_btn.click(delay=random.randint(150, 400))
         print("[✓] Verification request sent")
         pause(5, 8)
     except Exception as e:
@@ -572,7 +602,7 @@ def handle_identity_verification(page, profile):
         otp = get_otp_from_email(wait_first=15)
 
         if otp:
-            pin_input.fill(otp)
+            pin_input.type(otp, delay=random.uniform(200, 450))
             print(f"[✓] PIN filled: {otp}")
         else:
             print("⚠️ OTP not found in email — waiting 60s for manual SMS entry...")
@@ -586,7 +616,7 @@ def handle_identity_verification(page, profile):
             'button:has-text("Submit"), button[type="submit"]'
         ).first
         verify_btn.wait_for(timeout=10000)
-        verify_btn.click()
+        verify_btn.click(delay=random.randint(150, 400))
         print("[✓] PIN submitted")
         pause(5, 8)
 
@@ -642,7 +672,7 @@ def handle_3ds_verification(page):
     if otp_input:
         otp = get_otp_from_email(wait_first=15)
         if otp:
-            otp_input.fill(otp)
+            otp_input.type(otp, delay=random.uniform(200, 450))
             print(f"[✓] 3DS OTP filled: {otp}")
             pause(1, 2)
 
@@ -654,7 +684,7 @@ def handle_3ds_verification(page):
                         'button[type="submit"], input[type="submit"]'
                     ).first
                     if submit.is_visible():
-                        submit.click()
+                        submit.click(delay=random.randint(150, 400))
                         print("[✓] 3DS submitted")
                         pause(5, 8)
                         break
@@ -688,7 +718,7 @@ def handle_support_plan(page):
         ).first
 
         basic_btn.wait_for(timeout=10000)
-        basic_btn.click()
+        basic_btn.click(delay=random.randint(150, 400))
         print("[✓] Basic (Free) support selected")
         pause(2, 3)
 
@@ -701,7 +731,7 @@ def handle_support_plan(page):
                 'button[type="submit"]'
             ).first
             cont.wait_for(timeout=10000)
-            cont.click()
+            cont.click(delay=random.randint(150, 400))
             print("[✓] Support plan confirmed")
             pause(5, 8)
         except Exception as e:
