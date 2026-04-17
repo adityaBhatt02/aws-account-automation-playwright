@@ -31,7 +31,7 @@ pipeline {
 
         stage('Setup') {
             steps {
-                withCredentials([file(credentialsId: 'aws-creator-env', variable: 'ENV_FILE')]) {
+                withCredentials([file(credentialsId: 'aws-env-file', variable: 'ENV_FILE')]) {
                     sh 'cp $ENV_FILE .env'
                 }
                 sh '''
