@@ -118,7 +118,7 @@ Full logs: ${BUILD_URL}console
 
                 // FIX: replaced .takeRight() with plain split + size math (sandbox safe)
                 def lines = output.split('\n')
-                def startIdx = [lines.size() - 100, 0].max()
+                def startIdx = lines.size() > 100 ? lines.size() - 100 : 0
                 def lastLines = lines[startIdx..<lines.size()].join('\n')
 
                 emailext(
