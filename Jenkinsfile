@@ -28,13 +28,13 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/YOUR_REPO.git'
+                git branch: 'main', url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright/'
             }
         }
 
         stage('Setup') {
             steps {
-                withCredentials([file(credentialsId: 'aws-creator-env', variable: 'ENV_FILE')]) {
+                withCredentials([file(credentialsId: 'aws-env-file', variable: 'ENV_FILE')]) {
                     sh 'cp $ENV_FILE .env'
                 }
                 sh '''
@@ -53,8 +53,9 @@ pipeline {
                     export DISPLAY=:99
                     Xvfb :99 -screen 0 1920x1080x24 &
                     sleep 2
-                    # Pass account type and count via env or hardcode here
-                    echo "1\n1" | python3 main.py 2>&1 | tee run_output.txt
+                    export AWS_ACCOUNT_COUNT=1
+                    export AWS_ACCOUNT_TYPE_KEY=1
+                    python3 main.py 2>&1 | tee run_output.txt
                 '''
             }
         }
@@ -67,7 +68,7 @@ pipeline {
                 def csvContent = fileExists('generated_accounts.csv') ? readFile('generated_accounts.csv') : 'No CSV generated'
                 
                 emailext(
-                    to: 'your-email@gmail.com',
+                    to: 'itsadityayayaya@gmail.com',
                     subject: "✅ AWS Account Creator — SUCCESS [Build #${BUILD_NUMBER}]",
                     body: """
 AWS Account Auto-Creator completed successfully.
