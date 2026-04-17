@@ -16,10 +16,10 @@ pipeline {
                 script {
                     def day = sh(script: "date +%d", returnStdout: true).trim().toInteger()
 
-                    if (!(day >= 8 && day <= 14) && !(day >= 22 && day <= 28)) {
+                    if (!((day >= 8 && day <= 14) || (day >= 22 && day <= 28))) {
                         currentBuild.result = 'NOT_BUILT'
                         error("Not 2nd or 4th Saturday — skipping this run")
-                     }
+                    }
                     echo "Valid 2nd/4th Saturday — proceeding"
                 }
             }
