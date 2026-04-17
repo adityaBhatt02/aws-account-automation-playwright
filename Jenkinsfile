@@ -1,8 +1,9 @@
+
 pipeline {
     agent any
 
     triggers {
-        cron('TZ=Asia/Kolkata\n0 17 * * 6#2')
+        cron('0 9 * * 6')
     }
 
     environment {
@@ -13,7 +14,12 @@ pipeline {
         stage('Check Alternate Week') {
             steps {
                 script {
-                    echo "Second Saturday run — proceeding"
+                    def weekNum = sh(script: "date +%V", returnStdout: true).trim().toInteger()
+                    if (weekNum % 2 != 0) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error("Odd week ${weekNum} — skipping this run")
+                    }
+                    echo "Week ${weekNum} — proceeding"
                 }
             }
         }
@@ -111,6 +117,7 @@ Full logs: ${BUILD_URL}console
                     .join('\n')
                     .take(500)
 
+                // FIX: replaced .takeRight() with plain split + size math (sandbox safe)
                 def lines = output.split('\n')
                 def startIdx = lines.size() > 100 ? lines.size() - 100 : 0
                 def lastLines = lines[startIdx..<lines.size()].join('\n')
