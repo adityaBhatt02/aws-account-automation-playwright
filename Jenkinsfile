@@ -25,7 +25,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright.git'
+                git branch: 'main', url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright'
             }
         }
 
