@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     triggers {
-        cron('0 9 * * 6')
+        cron('0 17 * * 6')
     }
 
     environment {
@@ -14,12 +14,13 @@ pipeline {
         stage('Check Alternate Week') {
             steps {
                 script {
-                    def weekNum = sh(script: "date +%V", returnStdout: true).trim().toInteger()
-                    if (weekNum % 2 != 0) {
+                    def day = sh(script: "date +%d", returnStdout: true).trim().toInteger()
+
+                    if (!(day >= 8 && day <= 14) && !(day >= 22 && day <= 28)) {
                         currentBuild.result = 'NOT_BUILT'
-                        error("Odd week ${weekNum} — skipping this run")
-                    }
-                    echo "Week ${weekNum} — proceeding"
+                        error("Not 2nd or 4th Saturday — skipping this run")
+                     }
+                    echo "Valid 2nd/4th Saturday — proceeding"
                 }
             }
         }
