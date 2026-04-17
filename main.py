@@ -123,10 +123,10 @@ def pause(a=1, b=3):
 
 def slow_type(locator, text):
     locator.click(delay=random.randint(150, 400))
-    time.sleep(random.uniform(0.4, 0.8)) # Pause before typing
+    time.sleep(random.uniform(0.4, 0.8))
     for ch in text:
-        locator.type(ch, delay=random.uniform(200, 450)) # Very slow typing
-        if random.random() < 0.15: # 15% chance to hesitate
+        locator.type(ch, delay=random.uniform(200, 450))
+        if random.random() < 0.15:
             time.sleep(random.uniform(0.5, 1.5))
 
 
@@ -162,6 +162,16 @@ def dismiss_cookie_banner(page):
         pass
 
 
+def take_screenshot(page, name):
+    """Save a debug screenshot and print its path."""
+    try:
+        path = f"debug_{name}.png"
+        page.screenshot(path=path, full_page=True)
+        print(f"[DEBUG] Screenshot saved: {path}")
+    except Exception as e:
+        print(f"[WARN] Screenshot failed: {e}")
+
+
 def select_dropdown(page, btn_selector, value, is_month=False):
     display_value = MONTH_MAP.get(value, value) if is_month else value
     btn = page.locator(btn_selector)
@@ -187,7 +197,6 @@ def select_dropdown(page, btn_selector, value, is_month=False):
 
 
 def wait_for_any(page, selectors, timeout=20000):
-    """Wait for any of the given CSS/text selectors and return which one matched."""
     start = time.time()
     while (time.time() - start) * 1000 < timeout:
         for sel in selectors:
@@ -208,6 +217,9 @@ def signup(page, alias_email, account_type):
     page.goto("https://signin.aws.amazon.com/signup?request_type=register")
     page.wait_for_load_state("domcontentloaded")
     pause(5, 8)
+
+    # Screenshot after page load to see what AWS shows
+    take_screenshot(page, "01_page_load")
 
     page.wait_for_selector("#emailAddress", timeout=30000)
 
@@ -239,6 +251,9 @@ def signup(page, alias_email, account_type):
     btn.click(delay=random.randint(150, 400))
     pause(3, 5)
 
+    # Screenshot after submit — this shows CAPTCHA or OTP page
+    take_screenshot(page, "02_after_email_submit")
+
     try:
         if page.locator('text=Sorry, there was an error').is_visible():
             raise Exception("AWS blocked signup after submit")
@@ -246,36 +261,55 @@ def signup(page, alias_email, account_type):
         if "blocked" in str(e):
             raise
 
-    page.wait_for_selector("#otp", timeout=30000)
+    # Check if CAPTCHA appeared
+    try:
+        captcha_visible = page.locator(
+            'iframe[src*="captcha"], iframe[title*="captcha"], '
+            '[id*="captcha"], [class*="captcha"], '
+            'text=Type the characters, text=Enter the characters'
+        ).first.is_visible()
+        if captcha_visible:
+            print("⚠️ CAPTCHA detected — taking screenshot and waiting 60s...")
+            take_screenshot(page, "captcha_detected")
+            time.sleep(60)  # Wait hoping it auto-resolves or times out
+    except Exception:
+        pass
+
+    # Wait for OTP input
+    print("[*] Waiting for OTP input field...")
+    page.wait_for_selector("#otp", timeout=60000)
     print("[*] OTP input found")
+
+    take_screenshot(page, "03_otp_page")
 
     otp = get_otp_from_email(wait_first=30)
     if not otp:
+        take_screenshot(page, "otp_failed")
         raise Exception("Signup OTP not received")
 
-    # Changed from fill to slow type
     page.locator("#otp").click(delay=random.randint(150, 400))
     page.type("#otp", otp, delay=random.uniform(200, 450))
     page.click('[data-testid="verify-email-submit-button"]', delay=random.randint(150, 400))
     pause(2, 4)
 
+    take_screenshot(page, "04_after_otp_submit")
+
     page.wait_for_selector("#password", timeout=30000)
     page.locator("#password").click(delay=random.randint(150, 400))
     page.type("#password", CONFIG["PASSWORD"], delay=random.uniform(200, 450))
-    
-    # Blur fix so the second password box unlocks correctly
+
     page.locator("#password").blur()
     time.sleep(1)
-    
+
     page.locator("#rePassword").click(delay=random.randint(150, 400))
     page.type("#rePassword", CONFIG["PASSWORD"], delay=random.uniform(200, 450))
     page.click('[data-testid="create-password-submit-button"]', delay=random.randint(150, 400))
     pause(3, 5)
 
+    take_screenshot(page, "05_after_password")
     print("[✓] Signup done")
 
 
-# STEP 2: PLAN SELECTION
 # STEP 2: PLAN SELECTION
 def handle_plan_selection(page):
     print("\n===== STEP 2: PLAN SELECTION =====")
@@ -283,30 +317,33 @@ def handle_plan_selection(page):
         page.wait_for_selector('text=Choose your account plan', timeout=15000)
         print("[✓] Plan page detected — selecting FREE plan")
 
-        # 1. Use the exact data-analytics attribute from your screenshot
-        # 2. Fallback to the text selector just in case
+        take_screenshot(page, "06_plan_page")
+
+        # Updated selectors for current AWS UI (April 2026)
         free_btn = page.locator(
-            '[data-analytics="Free_Tier_V2_Account_Plan_Selection_Trial_Button_Text"], '
+            '[data-analytics-funnel-value*="Free"], '
+            '[data-analytics*="Free_Tier"], '
             'button:has-text("Choose free plan")'
         ).first
-        
-        # Ensure it's fully visible on screen before clicking
+
         free_btn.wait_for(state="visible", timeout=10000)
         free_btn.scroll_into_view_if_needed()
-        
-        # Execute the slow click
+        pause(1, 2)
         free_btn.click(delay=random.randint(150, 400))
         pause(3, 5)
         print("[✓] Free plan selected")
-        
+
     except Exception as e:
         print(f"[INFO] No plan selection page or error (skipping): {e}")
+        take_screenshot(page, "06_plan_page_error")
 
 
 # STEP 3: CONTACT INFO
 def fill_contact(page, profile):
     print("\n===== STEP 3: CONTACT INFO =====")
     pause(3, 5)
+
+    take_screenshot(page, "07_contact_page")
 
     # Phone country code
     try:
@@ -369,7 +406,7 @@ def fill_contact(page, profile):
         for ch in profile["STATE"]:
             state_input.type(ch, delay=random.uniform(200, 450))
             if random.random() < 0.10:
-                    time.sleep(random.uniform(0.5, 1.5))
+                time.sleep(random.uniform(0.5, 1.5))
         pause(2, 3)
         page.keyboard.press("ArrowDown")
         pause(0.5, 1)
@@ -390,6 +427,7 @@ def fill_contact(page, profile):
     # Submit
     try:
         pause(2, 3)
+        take_screenshot(page, "08_contact_before_submit")
         page.click('[data-testid="contact-information-submit-button"]', delay=random.randint(150, 400))
         pause(5, 8)
         print("[✓] Contact submitted")
@@ -411,6 +449,7 @@ def billing(page, profile, account_type):
         pause(5, 7)
         page.wait_for_selector('text=Payment method type', timeout=20000)
 
+    take_screenshot(page, "09_billing_page")
     dismiss_cookie_banner(page)
     page.get_by_text("Credit or debit card").click(delay=random.randint(150, 400))
     pause(2, 3)
@@ -440,7 +479,6 @@ def billing(page, profile, account_type):
     if card_frame:
         try:
             card_frame.wait_for_selector('input[name="cardNumber"]', timeout=10000)
-            # Changed fill to slow type
             card_frame.type('input[name="cardNumber"]', CONFIG["CardNo"], delay=random.uniform(200, 450))
             pause(1, 2)
             card_frame.type('input[name="sor.cvv"]', CONFIG["cvvNo"], delay=random.uniform(200, 450))
@@ -504,6 +542,7 @@ def billing(page, profile, account_type):
         print(f"[INFO] PAN: {e}")
 
     dismiss_cookie_banner(page)
+    take_screenshot(page, "10_billing_before_continue")
 
     # Click Continue
     try:
@@ -524,17 +563,18 @@ def billing(page, profile, account_type):
 def handle_identity_verification(page, profile):
     print("\n===== STEP 5: IDENTITY VERIFICATION =====")
 
-    # Wait for identity verification page
     matched = wait_for_any(page, [
         'text=Identity verification',
         'text=Verify your identity',
         'text=We need to verify',
         'text=Enter the PIN',
         'text=verification code',
-        'text=Support plan',         # skipped identity
-        'text=Congratulations',      # account already done
+        'text=Support plan',
+        'text=Congratulations',
         'text=Welcome to AWS',
     ], timeout=30000)
+
+    take_screenshot(page, "11_identity_page")
 
     if matched is None:
         print("[WARN] No identity verification page detected — continuing")
@@ -546,7 +586,7 @@ def handle_identity_verification(page, profile):
 
     print(f"[✓] Identity verification page detected: {matched}")
 
-    # Select phone verification method if asked
+    # Select phone verification method
     try:
         phone_option = page.locator(
             'input[value="voice"], input[value="sms"], '
@@ -559,7 +599,7 @@ def handle_identity_verification(page, profile):
     except Exception:
         pass
 
-    # Fill phone number if asked
+    # Fill phone number
     try:
         phone_input = page.locator(
             'input[name="phoneNumber"], input[id*="phone"], '
@@ -587,7 +627,7 @@ def handle_identity_verification(page, profile):
     except Exception as e:
         print(f"⚠️ Send verification: {e}")
 
-    # Wait for PIN/OTP input to appear
+    # Wait for PIN/OTP input
     try:
         pin_input = page.locator(
             'input[name="pin"], input[id*="pin"], input[id*="otp"], '
@@ -597,8 +637,8 @@ def handle_identity_verification(page, profile):
         pin_input.wait_for(timeout=30000)
         print("[*] PIN input found — waiting for SMS/call OTP...")
 
-        # Get OTP from email (AWS sometimes sends it to email too)
-        # Wait and try email first, then pause for manual if needed
+        take_screenshot(page, "12_pin_input")
+
         otp = get_otp_from_email(wait_first=15)
 
         if otp:
@@ -606,11 +646,10 @@ def handle_identity_verification(page, profile):
             print(f"[✓] PIN filled: {otp}")
         else:
             print("⚠️ OTP not found in email — waiting 60s for manual SMS entry...")
-            time.sleep(60)  # Give time for SMS to arrive and user to see
+            time.sleep(60)
 
         pause(1, 2)
 
-        # Click Continue / Verify
         verify_btn = page.locator(
             'button:has-text("Continue"), button:has-text("Verify"), '
             'button:has-text("Submit"), button[type="submit"]'
@@ -624,11 +663,10 @@ def handle_identity_verification(page, profile):
         print(f"⚠️ PIN step: {e}")
 
 
-# STEP 6: 3D SECURE / CARD OTP (Bank verification)
+# STEP 6: 3D SECURE / CARD OTP
 def handle_3ds_verification(page):
     print("\n===== STEP 6: 3DS CARD VERIFICATION =====")
 
-    # Check if 3DS page appeared (usually an iframe from bank)
     matched = wait_for_any(page, [
         'text=Enter OTP',
         'text=One Time Password',
@@ -636,10 +674,12 @@ def handle_3ds_verification(page):
         'text=Verified by Visa',
         'text=Mastercard SecureCode',
         'text=Authentication',
-        'text=Support plan',       # 3DS skipped
-        'text=Congratulations',    # done
+        'text=Support plan',
+        'text=Congratulations',
         'text=Welcome to AWS',
     ], timeout=20000)
+
+    take_screenshot(page, "13_3ds_page")
 
     if matched is None:
         print("[INFO] No 3DS page — continuing")
@@ -651,10 +691,8 @@ def handle_3ds_verification(page):
 
     print(f"[✓] 3DS page detected: {matched}")
 
-    # 3DS is inside a bank iframe — try to find OTP input
     otp_input = None
 
-    # Check all frames for OTP input
     for frame in page.frames:
         try:
             inp = frame.locator(
@@ -676,7 +714,6 @@ def handle_3ds_verification(page):
             print(f"[✓] 3DS OTP filled: {otp}")
             pause(1, 2)
 
-            # Submit
             for frame in page.frames:
                 try:
                     submit = frame.locator(
@@ -708,7 +745,8 @@ def handle_support_plan(page):
         page.wait_for_selector('text=Support plan', timeout=20000)
         print("[✓] Support plan page detected — selecting Basic (Free)")
 
-        # Try clicking Basic/Free plan
+        take_screenshot(page, "14_support_plan")
+
         basic_btn = page.locator(
             'button:has-text("Basic support"), '
             'button:has-text("Free"), '
@@ -722,7 +760,6 @@ def handle_support_plan(page):
         print("[✓] Basic (Free) support selected")
         pause(2, 3)
 
-        # Click Continue / Complete
         try:
             cont = page.locator(
                 'button:has-text("Complete sign up"), '
@@ -741,7 +778,7 @@ def handle_support_plan(page):
         print("[INFO] No support plan page detected (skipping)")
 
 
-# STEP 8: WAIT FOR ACCOUNT CREATION SUCCESS
+# STEP 8: WAIT FOR SUCCESS
 def wait_for_success(page):
     print("\n===== STEP 8: WAITING FOR ACCOUNT CREATION =====")
 
@@ -754,6 +791,8 @@ def wait_for_success(page):
         'text=Go to the AWS Management Console',
         'text=Console',
     ], timeout=60000)
+
+    take_screenshot(page, "15_final_page")
 
     if matched:
         print(f"[✓] Account creation confirmed: {matched}")
@@ -796,15 +835,14 @@ def create_one_account(browser, account_type, index):
     status = "FAILED"
 
     try:
-        # FULL FLOW — no breaks
-        signup(page, alias_email, account_type)          # Step 1
-        handle_plan_selection(page)                       # Step 2
-        fill_contact(page, profile)                       # Step 3
-        billing(page, profile, account_type)              # Step 4
-        handle_identity_verification(page, profile)       # Step 5
-        handle_3ds_verification(page)                     # Step 6
-        handle_support_plan(page)                         # Step 7
-        success = wait_for_success(page)                  # Step 8
+        signup(page, alias_email, account_type)
+        handle_plan_selection(page)
+        fill_contact(page, profile)
+        billing(page, profile, account_type)
+        handle_identity_verification(page, profile)
+        handle_3ds_verification(page)
+        handle_support_plan(page)
+        success = wait_for_success(page)
 
         status = "SUCCESS" if success else "PARTIAL"
         print(f"\n✅ Account {index} — {status}")
@@ -812,6 +850,7 @@ def create_one_account(browser, account_type, index):
     except Exception as e:
         status = f"FAILED: {str(e)[:80]}"
         print(f"\n❌ Account {index} failed: {e}")
+        take_screenshot(page, f"error_account_{index}")
         import traceback
         traceback.print_exc()
 
@@ -834,10 +873,9 @@ def run():
 
     # ── CI / Jenkins non-interactive mode ──────────────────────────────────
     ci_count    = os.getenv("AWS_ACCOUNT_COUNT")
-    ci_type_key = os.getenv("AWS_ACCOUNT_TYPE_KEY")  # "1" = TTN, "2" = TTN_US, "3" = CK
+    ci_type_key = os.getenv("AWS_ACCOUNT_TYPE_KEY")  # "1"=TTN, "2"=TTN_US, "3"=CK
 
     if ci_count and ci_type_key:
-        # Validate count
         try:
             count = int(ci_count)
             if not (1 <= count <= MAX_ACCOUNTS):
@@ -846,7 +884,6 @@ def run():
             print(f"❌ Invalid AWS_ACCOUNT_COUNT: {e}")
             raise SystemExit(1)
 
-        # Validate type key
         if ci_type_key not in ACCOUNT_TYPES:
             print(f"❌ Invalid AWS_ACCOUNT_TYPE_KEY '{ci_type_key}' — must be 1, 2, or 3")
             raise SystemExit(1)
@@ -856,9 +893,8 @@ def run():
         print(f"[CI Mode] AWS_ACCOUNT_COUNT={count} | AWS_ACCOUNT_TYPE_KEY={ci_type_key}\n")
 
     else:
-        # ── Interactive mode (local / manual run) ──────────────────────────
+        # ── Interactive mode (local run) ───────────────────────────────────
         count, account_type = prompt_inputs()
-    # ───────────────────────────────────────────────────────────────────────
 
     init_csv()
 
@@ -892,6 +928,10 @@ def run():
     print(f"  DONE — {results['SUCCESS']} success, {results['PARTIAL']} partial, {results['FAILED']} failed")
     print(f"  Results saved to: {OUTPUT_FILE}")
     print(f"{'='*50}\n")
+
+    # ── Exit with error if nothing succeeded — Jenkins marks as FAILURE ────
+    if results['SUCCESS'] == 0 and results['PARTIAL'] == 0:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
