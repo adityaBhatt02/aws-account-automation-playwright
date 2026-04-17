@@ -832,7 +832,34 @@ def run():
         os.remove(lock_file)
         print("[✓] Removed stale SingletonLock")
 
-    count, account_type = prompt_inputs()
+    # ── CI / Jenkins non-interactive mode ──────────────────────────────────
+    ci_count    = os.getenv("AWS_ACCOUNT_COUNT")
+    ci_type_key = os.getenv("AWS_ACCOUNT_TYPE_KEY")  # "1" = TTN, "2" = TTN_US, "3" = CK
+
+    if ci_count and ci_type_key:
+        # Validate count
+        try:
+            count = int(ci_count)
+            if not (1 <= count <= MAX_ACCOUNTS):
+                raise ValueError(f"AWS_ACCOUNT_COUNT must be 1-{MAX_ACCOUNTS}, got {count}")
+        except ValueError as e:
+            print(f"❌ Invalid AWS_ACCOUNT_COUNT: {e}")
+            raise SystemExit(1)
+
+        # Validate type key
+        if ci_type_key not in ACCOUNT_TYPES:
+            print(f"❌ Invalid AWS_ACCOUNT_TYPE_KEY '{ci_type_key}' — must be 1, 2, or 3")
+            raise SystemExit(1)
+
+        account_type = ACCOUNT_TYPES[ci_type_key]
+        print(f"\n[CI Mode] Creating {count} account(s) — Type: {account_type}")
+        print(f"[CI Mode] AWS_ACCOUNT_COUNT={count} | AWS_ACCOUNT_TYPE_KEY={ci_type_key}\n")
+
+    else:
+        # ── Interactive mode (local / manual run) ──────────────────────────
+        count, account_type = prompt_inputs()
+    # ───────────────────────────────────────────────────────────────────────
+
     init_csv()
 
     results = {"SUCCESS": 0, "PARTIAL": 0, "FAILED": 0}
