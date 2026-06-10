@@ -72,7 +72,7 @@ pipeline {
                 def csvContent = fileExists('generated_accounts.csv') ? readFile('generated_accounts.csv') : 'No CSV generated'
 
                 emailext(
-                    to: 'itsadityayayaya@gmail.com , diya.khandelwal@cloudkeeper.com',
+                    to: 'itsadityayayaya@gmail.com',
                     subject: "AWS Account Creator — SUCCESS [Build #${BUILD_NUMBER}]",
                     body: """
 AWS Account Auto-Creator completed successfully.
