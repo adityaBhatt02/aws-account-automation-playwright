@@ -101,22 +101,20 @@ ${BUILD_URL}artifact/
         }
 
         failure {
-            emailext(
-                to: 'itsadityayayaya@gmail.com',
-                subject: "❌ AWS Account Creator FAILED - Build #${BUILD_NUMBER}",
-                body: """
-AWS Account Auto-Creator failed.
+    mail(
+        to: 'itsadityayayaya@gmail.com',
+        subject: "AWS Account Creator FAILED #${BUILD_NUMBER}",
+        body: """
+Build failed.
 
 Job: ${JOB_NAME}
 Build: #${BUILD_NUMBER}
 
 Console:
 ${BUILD_URL}console
-
-Please review the logs.
 """
-            )
-        }
+    )
+}
 
         always {
             sh 'rm -f .env || true'
