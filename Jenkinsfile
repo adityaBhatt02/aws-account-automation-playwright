@@ -62,6 +62,7 @@ stages {
                 echo "[Jenkins] Account Count: $AWS_ACCOUNT_COUNT"
                 echo "[Jenkins] Account Type Key: $AWS_ACCOUNT_TYPE_KEY"
 
+                set -o pipefail
                 python3 main.py 2>&1 | tee run_output.txt
 
                 # Mark build as failed if script logged failures
