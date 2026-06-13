@@ -11,10 +11,10 @@ pipeline {
 
     post {
         failure {
-            emailext(
+            mail(
                 to: 'itsadityayayaya@gmail.com',
-                subject: "FAILURE TEST ${BUILD_NUMBER}",
-                body: "Hello from Jenkins"
+                subject: 'MAIL STEP TEST',
+                body: 'Hello'
             )
         }
     }
