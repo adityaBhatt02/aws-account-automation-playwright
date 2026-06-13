@@ -72,37 +72,15 @@ stages {
 }
 
 post {
-
-    success {
+    failure {
         emailext(
             to: 'itsadityayayaya@gmail.com',
-            subject: "✅ AWS Account Creator — SUCCESS [Build #${BUILD_NUMBER}]",
-            body: """
+            subject: "FAILURE TEST ${BUILD_NUMBER}",
+            body: "Hello from Jenkins"
+        )
+    }
 
-
-AWS Account Auto-Creator completed successfully.
-
-Build: #${BUILD_NUMBER}
-Date: ${new Date()}
-
-Console Logs:
-${BUILD_URL}console
-
-Artifacts:
-${BUILD_URL}artifact/
-""",
-attachmentsPattern: 'generated_accounts.csv'
-)
-}
-
-
-    failure {
-    emailext(
-        to: 'itsadityayayaya@gmail.com',
-        subject: "FAILURE TEST ${BUILD_NUMBER}",
-        body: "Hello from Jenkins"
-    )
-}
-
-
+    always {
+        sh 'rm -f .env'
+    }
 }
