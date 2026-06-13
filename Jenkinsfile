@@ -97,52 +97,11 @@ attachmentsPattern: 'generated_accounts.csv'
 
 
     failure {
-        script {
-
-            def output = fileExists('run_output.txt')
-                ? readFile('run_output.txt')
-                : 'No output captured'
-
-            def errorLines = output.split('\\n')
-                .findAll {
-                    it.contains('❌') ||
-                    it.contains('FAILED') ||
-                    it.contains('Exception') ||
-                    it.contains('Timeout')
-                }
-                .join('\\n')
-                .take(1500)
-
-            emailext(
-                to: 'itsadityayayaya@gmail.com',
-                subject: "❌ AWS Account Creator — FAILED [Build #${BUILD_NUMBER}]",
-                body: """
-
-
-AWS Account Auto-Creator FAILED.
-
-Build: #${BUILD_NUMBER}
-Date: ${new Date()}
-
-Error Summary:
-${errorLines}
-
-Console Logs:
-${BUILD_URL}console
-
-Artifacts:
-${BUILD_URL}artifact/
-""",
-attachmentsPattern: 'generated_accounts.csv,debug_*.png'
-)
-}
-}
-
-
-    always {
-        archiveArtifacts artifacts: 'generated_accounts.csv,debug_*.png', allowEmptyArchive: true
-        sh 'rm -f .env'
-    }
+    emailext(
+        to: 'itsadityayayaya@gmail.com',
+        subject: "FAILURE TEST ${BUILD_NUMBER}",
+        body: "Hello from Jenkins"
+    )
 }
 
 
