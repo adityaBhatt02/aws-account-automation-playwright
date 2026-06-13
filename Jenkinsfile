@@ -81,10 +81,10 @@ pipeline {
     post {
 
         success {
-            emailext(
-                to: 'itsadityayayaya@gmail.com',
-                subject: "✅ AWS Account Creator SUCCESS - Build #${BUILD_NUMBER}",
-                body: """
+    emailext(
+        to: 'itsadityayayaya@gmail.com',
+        subject: "✅ AWS Account Creator SUCCESS - Build #${BUILD_NUMBER}",
+        body: """
 AWS Account Auto-Creator completed successfully.
 
 Job: ${JOB_NAME}
@@ -92,18 +92,15 @@ Build: #${BUILD_NUMBER}
 
 Console:
 ${BUILD_URL}console
-
-Artifacts:
-${BUILD_URL}artifact/
 """,
-                attachmentsPattern: 'generated_accounts.csv'
-            )
-        }
+        attachmentsPattern: 'generated_accounts.csv'
+    )
+}
 
         failure {
-    mail(
+    emailext(
         to: 'itsadityayayaya@gmail.com',
-        subject: "AWS Account Creator FAILED #${BUILD_NUMBER}",
+        subject: "❌ AWS Account Creator FAILED - Build #${BUILD_NUMBER}",
         body: """
 Build failed.
 
@@ -112,9 +109,11 @@ Build: #${BUILD_NUMBER}
 
 Console:
 ${BUILD_URL}console
-"""
+""",
+        attachLog: true,
+        attachmentsPattern: '*.png,generated_accounts.csv'
     )
-}
+}    
 
         always {
             sh 'rm -f .env || true'
