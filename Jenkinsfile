@@ -101,7 +101,7 @@ post {
     success {
 
         mail(
-            to: 'itsadityayayaya@gmail.com', 'diya.khandelwal@cloudkeeper.com'
+            to: 'itsadityayayaya@gmail.com,diya.khandelwal@cloudkeeper.com',
             subject: "AWS Account Creator SUCCESS #${BUILD_NUMBER}",
             body: """
 
@@ -127,7 +127,7 @@ ${BUILD_URL}artifact/generated_accounts.csv
     failure {
 
         mail(
-            to: 'itsadityayayaya@gmail.com', 'diya.khandelwal@cloudkeeper.com'
+            to: 'itsadityayayaya@gmail.com,diya.khandelwal@cloudkeeper.com',
             subject: "AWS Account Creator FAILED #${BUILD_NUMBER}",
             body: """
 
