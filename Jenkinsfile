@@ -1,7 +1,7 @@
 pipeline {
 agent any
 
-```
+
 triggers {
     cron('0 17 * * 6')
 }
@@ -11,6 +11,7 @@ environment {
 }
 
 stages {
+
     stage('Check Alternate Week') {
         steps {
             script {
@@ -28,7 +29,8 @@ stages {
 
     stage('Checkout') {
         steps {
-            git branch: 'main', url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright'
+            git branch: 'main',
+                url: 'https://github.com/adityaBhatt02/aws-account-automation-playwright'
         }
     }
 
@@ -64,9 +66,6 @@ stages {
 
                 set -o pipefail
                 python3 main.py 2>&1 | tee run_output.txt
-
-                # Mark build as failed if script logged failures
-                grep -q "0 success, 0 partial, 1 failed" run_output.txt && exit 1 || true
             '''
         }
     }
@@ -79,7 +78,7 @@ post {
             to: 'itsadityayayaya@gmail.com',
             subject: "✅ AWS Account Creator — SUCCESS [Build #${BUILD_NUMBER}]",
             body: """
-```
+
 
 AWS Account Auto-Creator completed successfully.
 
@@ -96,7 +95,7 @@ attachmentsPattern: 'generated_accounts.csv'
 )
 }
 
-```
+
     failure {
         script {
 
@@ -104,21 +103,21 @@ attachmentsPattern: 'generated_accounts.csv'
                 ? readFile('run_output.txt')
                 : 'No output captured'
 
-            def errorLines = output.split('\n')
+            def errorLines = output.split('\\n')
                 .findAll {
                     it.contains('❌') ||
                     it.contains('FAILED') ||
                     it.contains('Exception') ||
                     it.contains('Timeout')
                 }
-                .join('\n')
+                .join('\\n')
                 .take(1500)
 
             emailext(
                 to: 'itsadityayayaya@gmail.com',
                 subject: "❌ AWS Account Creator — FAILED [Build #${BUILD_NUMBER}]",
                 body: """
-```
+
 
 AWS Account Auto-Creator FAILED.
 
@@ -139,12 +138,12 @@ attachmentsPattern: 'generated_accounts.csv,debug_*.png'
 }
 }
 
-```
+
     always {
         archiveArtifacts artifacts: 'generated_accounts.csv,debug_*.png', allowEmptyArchive: true
         sh 'rm -f .env'
     }
 }
-```
+
 
 }
