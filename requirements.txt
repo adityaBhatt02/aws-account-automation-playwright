@@ -1,3 +1,4 @@
+// requirements
 playwright
 playwright-stealth
 python-dotenv
